@@ -1,4 +1,4 @@
-# hive_db_example
+# Simple TODO app using Hive database in Flutter
 
 A new Flutter project.
 
