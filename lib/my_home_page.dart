@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
-import 'package:hive_db_example/note_model.dart';
+import 'package:hive_db_example/task_model.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 class MyHomePage extends StatefulWidget {
   @override
@@ -8,41 +9,40 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  String title;
-  String newNote;
-  Note note;
+  String inputTask;
 
-  final notesBox = Hive.box<Note>('notes');
+  Task _task;
 
-  void _addNote(Note inputNote) {
-    notesBox.add(Note(title: inputNote.title, note: inputNote.note));
-    setState(() {});
+  Box<Task> todosBox;
+
+  void _addTodo(Task inputTodo) {
+    todosBox.add(Task(task: inputTodo.task));
   }
 
   @override
   Widget build(BuildContext context) {
-    notesBox.clear();
+    // notesBox.clear();
     return Scaffold(
       appBar: AppBar(
-        title: Text('Simple Note taking app using Hive'),
+        title: Text('Simple TODO app using Hive'),
       ),
-      body: ListView.builder(
-          itemCount: notesBox.length,
-          itemBuilder: (BuildContext context, int index) {
-            final note = notesBox.get(index);
-            print('yahoo');
-            return ListTile(
-              title: Text(note.title),
-              subtitle: Text(note.note),
-              onLongPress: () {
-                notesBox.deleteAt(index);
-                print('Note is deleted');
-              },
-            );
+      body: ValueListenableBuilder(
+          valueListenable: Hive.box<Task>('TODOs').listenable(),
+          builder: (context, Box<Task> _notesBox, _) {
+            todosBox = _notesBox;
+            return ListView.builder(
+                itemCount: _notesBox.values.length,
+                itemBuilder: (BuildContext context, int index) {
+                  final todo = todosBox.getAt(index);
+                  return ListTile(
+                    title: Text(todo.task),
+                    onLongPress: () => todosBox.deleteAt(index),
+                  );
+                });
           }),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _simpleDialog(),
-        tooltip: 'AddNewNote',
+        tooltip: 'AddNewTODOTask',
         child: Icon(Icons.add),
       ),
     );
@@ -53,7 +53,7 @@ class _MyHomePageState extends State<MyHomePage> {
       context: context,
       builder: (BuildContext context) {
         return SimpleDialog(
-          title: const Text('New Note'),
+          title: const Text('New TODO Task'),
           children: <Widget>[
             Center(
               child: Padding(
@@ -63,7 +63,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   children: [
                     TextField(
                       decoration: InputDecoration(
-                        hintText: 'Title',
+                        hintText: 'TODO Task',
                         focusedBorder: OutlineInputBorder(
                           borderSide: BorderSide(
                             color: Colors.blue,
@@ -71,19 +71,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                         border: InputBorder.none,
                       ),
-                      onChanged: (value) => title = value,
-                    ),
-                    TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Write a Note',
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(
-                            color: Colors.blue,
-                          ),
-                        ),
-                        border: InputBorder.none,
-                      ),
-                      onChanged: (value) => newNote = value,
+                      onChanged: (value) => inputTask = value,
                     ),
                     Padding(
                       padding: const EdgeInsets.all(15.0),
@@ -93,16 +81,15 @@ class _MyHomePageState extends State<MyHomePage> {
                           FlatButton(
                             color: Colors.blue,
                             onPressed: () {
-                              print('button clicked');
-                              note = Note(title: title, note: newNote);
-                              _addNote(note);
+                              _task = Task(task: inputTask);
+                              _addTodo(_task);
                               Navigator.pop(context);
                             },
                             child: Text('Add'),
                           ),
                           FlatButton(
                             color: Colors.blue,
-                            onPressed: () {},
+                            onPressed: () => Navigator.pop(context),
                             child: Text('Cancel'),
                           )
                         ],
@@ -120,7 +107,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void dispose() {
-    notesBox.close();
+    // remove the deleted index holes/slots from database
+    // to free up the space
+    todosBox.compact();
+
+    todosBox.close();
     super.dispose();
   }
 }
